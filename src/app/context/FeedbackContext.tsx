@@ -1,7 +1,7 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode } from "react";
 
 interface FeedbackState {
-  studentId: string;
+  studentEmail: string;
   academicYear: string;
   course: string;
   subject: string;
@@ -18,22 +18,24 @@ interface FeedbackState {
 
 interface FeedbackContextType {
   state: FeedbackState;
-  setStudentId: (id: string) => void;
+  setStudentEmail: (email: string) => void;
   setAcademicYear: (year: string) => void;
   setCourse: (course: string) => void;
   setSubject: (subject: string) => void;
-  setResponses: (responses: FeedbackState['responses']) => void;
+  setResponses: (responses: FeedbackState["responses"]) => void;
   setAdminAuthenticated: (authenticated: boolean) => void;
   resetState: () => void;
 }
 
-const FeedbackContext = createContext<FeedbackContextType | undefined>(undefined);
+const FeedbackContext = createContext<FeedbackContextType | undefined>(
+  undefined
+);
 
 const initialState: FeedbackState = {
-  studentId: '',
-  academicYear: '',
-  course: '',
-  subject: '',
+  studentEmail: "",
+  academicYear: "",
+  course: "",
+  subject: "",
   responses: null,
   isAdminAuthenticated: false,
 };
@@ -41,28 +43,28 @@ const initialState: FeedbackState = {
 export function FeedbackProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<FeedbackState>(initialState);
 
-  const setStudentId = (id: string) => {
-    setState(prev => ({ ...prev, studentId: id }));
+  const setStudentEmail = (email: string) => {
+    setState((prev) => ({ ...prev, studentEmail: email }));
   };
 
   const setAcademicYear = (year: string) => {
-    setState(prev => ({ ...prev, academicYear: year }));
+    setState((prev) => ({ ...prev, academicYear: year }));
   };
 
   const setCourse = (course: string) => {
-    setState(prev => ({ ...prev, course: course }));
+    setState((prev) => ({ ...prev, course: course }));
   };
 
   const setSubject = (subject: string) => {
-    setState(prev => ({ ...prev, subject: subject }));
+    setState((prev) => ({ ...prev, subject: subject }));
   };
 
-  const setResponses = (responses: FeedbackState['responses']) => {
-    setState(prev => ({ ...prev, responses }));
+  const setResponses = (responses: FeedbackState["responses"]) => {
+    setState((prev) => ({ ...prev, responses }));
   };
 
   const setAdminAuthenticated = (authenticated: boolean) => {
-    setState(prev => ({ ...prev, isAdminAuthenticated: authenticated }));
+    setState((prev) => ({ ...prev, isAdminAuthenticated: authenticated }));
   };
 
   const resetState = () => {
@@ -73,7 +75,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     <FeedbackContext.Provider
       value={{
         state,
-        setStudentId,
+        setStudentEmail,
         setAcademicYear,
         setCourse,
         setSubject,
@@ -89,8 +91,8 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
 
 export function useFeedback() {
   const context = useContext(FeedbackContext);
-  if (context === undefined) {
-    throw new Error('useFeedback must be used within a FeedbackProvider');
+  if (!context) {
+    throw new Error("useFeedback must be used within FeedbackProvider");
   }
   return context;
 }
