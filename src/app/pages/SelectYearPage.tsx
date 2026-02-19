@@ -1,81 +1,117 @@
-import { useNavigate } from 'react-router';
-import { useFeedback } from '../context/FeedbackContext';
-import svgPaths from '../../imports/svg-xmxeag9jel';
-
-const academicYears = [
-  '2025-2026',
-  '2024-2025',
-  '2023-2024',
-  '2022-2023',
-];
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../../firebase/firebase";
+import { useFeedback } from "../context/FeedbackContext";
 
 export function SelectYearPage() {
   const navigate = useNavigate();
-  const { setAcademicYear } = useFeedback();
+  const { setProgram, setYearLevel } = useFeedback();
 
-  const handleYearSelect = (year: string) => {
-    setAcademicYear(year);
-    navigate('/select-course');
+ 
+  const [programs, setPrograms] = useState<string[]>([]);
+  const [years, setYears] = useState<string[]>([]);
+  const [selectedProgram, setSelectedProgram] = useState<string>("");
+  const [selectedYearLevel, setSelectedYearLevel] = useState<string>("");
+
+  useEffect(() => {
+    const fetchPrograms = async () => {
+      const snapshot = await getDocs(collection(db, "feedbackForms"));
+
+      const programSet = new Set<string>();
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.program) programSet.add(data.program);
+      });
+
+      setPrograms(Array.from(programSet));
+    };
+
+    fetchPrograms();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedProgram) return;
+
+    const fetchYears = async () => {
+      const snapshot = await getDocs(collection(db, "feedbackForms"));
+
+      const yearSet = new Set<string>();
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.program === selectedProgram && data.yearLevel) {
+          yearSet.add(data.yearLevel);
+        }
+      });
+
+      setYears(Array.from(yearSet));
+    };
+
+    fetchYears();
+  }, [selectedProgram]);
+
+  const handleContinue = () => {
+    if (!selectedProgram || !selectedYearLevel) return;
+
+    setProgram(selectedProgram);
+    setYearLevel(selectedYearLevel);
+    navigate("/select-course");
   };
 
   return (
-    <div className="bg-[#f8fafc] content-stretch flex min-h-screen overflow-clip relative">
-      <div className="content-stretch flex flex-[1_0_0] flex-col items-start min-h-px min-w-px relative">
-        <div className="flex-[1_0_0] min-h-px min-w-px relative w-full">
-          <div className="bg-clip-padding border-0 border-[transparent] border-solid content-stretch flex flex-col items-center size-full px-[16px] py-[40px] relative">
-            <div className="content-stretch flex flex-col gap-[32px] items-start relative shrink-0 w-full max-w-[448px]">
-              {/* Back Button */}
-              <button
-                onClick={() => navigate('/login')}
-                className="content-stretch flex items-center relative shrink-0 hover:opacity-70 transition-opacity"
-              >
-                <div className="h-[12px] relative shrink-0 w-[7.406px]">
-                  <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 7.40625 12">
-                    <g id="Container">
-                      <path d={svgPaths.p1c24c780} fill="var(--fill-0, #137FEC)" id="Icon" />
-                    </g>
-                  </svg>
-                </div>
-                <div className="flex flex-col font-['Lexend:Medium',sans-serif] font-medium h-[24px] justify-center leading-[0] relative shrink-0 text-[#137fec] text-[16px] text-center w-[39.31px] ml-1">
-                  <p className="leading-[24px] whitespace-pre-wrap">Back</p>
-                </div>
-              </button>
+    <div className="bg-[#f8fafc] min-h-screen flex items-center justify-center px-4">
+      <div className="bg-white w-full max-w-[448px] p-8 rounded-[16px] shadow-md border border-[#e2e8f0]">
+        <h1 className="text-2xl font-bold text-[#0f172a] mb-6 text-center">
+          Select Program & Year
+        </h1>
 
-              {/* Header */}
-              <div className="content-stretch flex flex-col gap-[8px] items-start relative shrink-0 w-full">
-                <div className="flex flex-col font-['Lexend:Bold',sans-serif] font-bold justify-center leading-[0] relative shrink-0 text-[#0f172a] text-[28px] w-full">
-                  <p className="leading-[36px] whitespace-pre-wrap">Select Academic Year</p>
-                </div>
-                <div className="flex flex-col font-['Lexend:Regular',sans-serif] font-normal justify-center leading-[24px] relative shrink-0 text-[#64748b] text-[16px] w-full whitespace-pre-wrap">
-                  <p>Choose the academic year for which you want to provide feedback.</p>
-                </div>
-              </div>
-
-              {/* Year Options */}
-              <div className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 w-full">
-                {academicYears.map((year) => (
-                  <button
-                    key={year}
-                    onClick={() => handleYearSelect(year)}
-                    className="bg-white relative rounded-[12px] shrink-0 w-full hover:shadow-md hover:border-[#137fec] transition-all group"
-                  >
-                    <div aria-hidden="true" className="absolute border border-[#e2e8f0] group-hover:border-[#137fec] border-solid inset-0 pointer-events-none rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]" />
-                    <div className="bg-clip-padding border-0 border-[transparent] border-solid content-stretch flex items-center justify-between px-[24px] py-[20px] relative w-full">
-                      <div className="flex flex-col font-['Lexend:Semi_Bold',sans-serif] justify-center leading-[0] relative shrink-0 text-[#0f172a] text-[18px]">
-                        <p className="leading-[24px] whitespace-pre-wrap">{year}</p>
-                      </div>
-                      <div className="h-[20px] relative shrink-0 w-[12px]">
-                        <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 12 20">
-                          <path d="M1.5 18.5L10 10L1.5 1.5" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:stroke-[#137fec]" />
-                        </svg>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+        <div className="mb-6">
+          <label className="block text-sm text-[#64748b] mb-2">
+            Program
+          </label>
+          <select
+            value={selectedProgram}
+            onChange={(e) => {
+              setSelectedProgram(e.target.value);
+              setSelectedYearLevel("");
+            }}
+            className="w-full border border-[#e2e8f0] rounded-[8px] px-4 py-3 focus:ring-2 focus:ring-[#137fec] outline-none"
+          >
+            <option value="">Select Program</option>
+            {programs.map((program) => (
+              <option key={program} value={program}>
+                {program}
+              </option>
+            ))}
+          </select>
         </div>
+
+        <div className="mb-8">
+          <label className="block text-sm text-[#64748b] mb-2">
+            Year Level
+          </label>
+          <select
+            value={selectedYearLevel}
+            onChange={(e) => setSelectedYearLevel(e.target.value)}
+            disabled={!selectedProgram}
+            className="w-full border border-[#e2e8f0] rounded-[8px] px-4 py-3 focus:ring-2 focus:ring-[#137fec] outline-none disabled:opacity-50"
+          >
+            <option value="">Select Year</option>
+            {years.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          onClick={handleContinue}
+          disabled={!selectedProgram || !selectedYearLevel}
+          className="bg-[#137fec] text-white w-full py-3 rounded-[12px] font-semibold disabled:opacity-50"
+        >
+          Continue
+        </button>
       </div>
     </div>
   );

@@ -163,7 +163,7 @@ function Button() {
   return (
     <button
       onClick={() => navigate("/login")}
-      className="bg-[#137fec] content-stretch flex gap-[12px] items-center justify-center py-[16px] relative rounded-[12px] shrink-0 w-full"
+className="bg-[#137fec] content-stretch flex gap-[12px] items-center justify-center py-[16px] relative rounded-[12px] shrink-0 w-full transition-all duration-300 hover:-translate-y-1 hover:shadow-[0px_12px_20px_-3px_rgba(19,127,236,0.35)] active:scale-95"
     >
       <div className="absolute bg-[rgba(255,255,255,0)] inset-0 rounded-[12px] shadow-[0px_10px_15px_-3px_rgba(19,127,236,0.25),0px_4px_6px_-4px_rgba(19,127,236,0.25)]" />
       <Container6 />
@@ -192,7 +192,7 @@ function Button1() {
   return (
     <button
       onClick={() => navigate("/admin-login")}
-      className="bg-white content-stretch flex gap-[12px] items-center justify-center px-[2px] py-[18px] relative rounded-[12px] shrink-0 w-full"
+className="bg-white content-stretch flex gap-[12px] items-center justify-center px-[2px] py-[18px] relative rounded-[12px] shrink-0 w-full transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-95"
     >
       <div
         aria-hidden="true"
@@ -290,7 +290,7 @@ function Container11() {
   return (
     <div className="content-stretch flex flex-col items-start relative shrink-0" data-name="Container">
       <div className="flex flex-col font-['Lexend:Medium',sans-serif] font-medium h-[15px] justify-center leading-[0] relative shrink-0 text-[#94a3b8] text-[10px] tracking-[1px] uppercase w-[160.61px]">
-        <p className="leading-[15px] whitespace-pre-wrap">v2.4.0 • Academic Portal</p>
+        <p className="leading-[15px] whitespace-pre-wrap">s3.3.0 • Academic Portal</p>
       </div>
     </div>
   );
