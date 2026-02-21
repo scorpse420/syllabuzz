@@ -1,24 +1,26 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../firebase/firebase";
 import { useFeedback } from "../context/FeedbackContext";
 
 export function SelectYearPage() {
   const navigate = useNavigate();
-  const { setProgram, setYearLevel } = useFeedback();
+  const { setProgram, setYearLevel, setSemester } = useFeedback();
 
- 
   const [programs, setPrograms] = useState<string[]>([]);
   const [years, setYears] = useState<string[]>([]);
+  const [semesters, setSemesters] = useState<string[]>([]);
+
   const [selectedProgram, setSelectedProgram] = useState<string>("");
   const [selectedYearLevel, setSelectedYearLevel] = useState<string>("");
+  const [selectedSemester, setSelectedSemester] = useState<string>("");
 
   useEffect(() => {
     const fetchPrograms = async () => {
       const snapshot = await getDocs(collection(db, "feedbackForms"));
-
       const programSet = new Set<string>();
+
       snapshot.forEach((doc) => {
         const data = doc.data();
         if (data.program) programSet.add(data.program);
@@ -35,8 +37,8 @@ export function SelectYearPage() {
 
     const fetchYears = async () => {
       const snapshot = await getDocs(collection(db, "feedbackForms"));
-
       const yearSet = new Set<string>();
+
       snapshot.forEach((doc) => {
         const data = doc.data();
         if (data.program === selectedProgram && data.yearLevel) {
@@ -50,68 +52,125 @@ export function SelectYearPage() {
     fetchYears();
   }, [selectedProgram]);
 
-  const handleContinue = () => {
+  useEffect(() => {
     if (!selectedProgram || !selectedYearLevel) return;
+
+    const fetchSemesters = async () => {
+      const snapshot = await getDocs(collection(db, "feedbackForms"));
+      const semesterSet = new Set<string>();
+
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (
+          data.program === selectedProgram &&
+          data.yearLevel === selectedYearLevel &&
+          data.semester
+        ) {
+          semesterSet.add(data.semester);
+        }
+      });
+
+      setSemesters(Array.from(semesterSet));
+    };
+
+    fetchSemesters();
+  }, [selectedProgram, selectedYearLevel]);
+
+  const handleContinue = () => {
+  
+    if (!selectedProgram || !selectedYearLevel || !selectedSemester) return;
 
     setProgram(selectedProgram);
     setYearLevel(selectedYearLevel);
+    setSemester(selectedSemester);
+
     navigate("/select-course");
   };
 
+  const isValid =
+    selectedProgram && selectedYearLevel && selectedSemester;
+
   return (
-    <div className="bg-[#f8fafc] min-h-screen flex items-center justify-center px-4">
-      <div className="bg-white w-full max-w-[448px] p-8 rounded-[16px] shadow-md border border-[#e2e8f0]">
-        <h1 className="text-2xl font-bold text-[#0f172a] mb-6 text-center">
-          Select Program & Year
+    <div className="min-h-screen flex items-center justify-center bg-[#137fec] px-4">
+
+      {/* White Card */}
+      <div className="w-full max-w-[420px] bg-white rounded-3xl shadow-2xl p-10 flex flex-col animate-fadeIn">
+
+        <h1 className="font-['Lexend:Bold',sans-serif] font-bold text-[#0f172a] text-[26px] text-center mb-8">
+          Select Program, Year & Semester
         </h1>
 
-        <div className="mb-6">
-          <label className="block text-sm text-[#64748b] mb-2">
-            Program
-          </label>
-          <select
-            value={selectedProgram}
-            onChange={(e) => {
-              setSelectedProgram(e.target.value);
-              setSelectedYearLevel("");
-            }}
-            className="w-full border border-[#e2e8f0] rounded-[8px] px-4 py-3 focus:ring-2 focus:ring-[#137fec] outline-none"
-          >
-            <option value="">Select Program</option>
-            {programs.map((program) => (
-              <option key={program} value={program}>
-                {program}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Program */}
+        <label className="font-['Lexend:Regular',sans-serif] text-sm text-gray-600 mb-2">
+          Select Program
+        </label>
+        <select
+          value={selectedProgram}
+          onChange={(e) => {
+            setSelectedProgram(e.target.value);
+            setSelectedYearLevel("");
+            setSelectedSemester("");
+          }}
+          className="w-full px-5 py-4 rounded-2xl bg-gray-100 outline-none text-[#0f172a] text-[15px] shadow-sm focus:ring-4 focus:ring-[#137fec]/30 transition-all duration-300 mb-6"
+        >
+          <option value="">Choose Program</option>
+          {programs.map((program) => (
+            <option key={program}>{program}</option>
+          ))}
+        </select>
 
-        <div className="mb-8">
-          <label className="block text-sm text-[#64748b] mb-2">
-            Year Level
-          </label>
-          <select
-            value={selectedYearLevel}
-            onChange={(e) => setSelectedYearLevel(e.target.value)}
-            disabled={!selectedProgram}
-            className="w-full border border-[#e2e8f0] rounded-[8px] px-4 py-3 focus:ring-2 focus:ring-[#137fec] outline-none disabled:opacity-50"
-          >
-            <option value="">Select Year</option>
-            {years.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Year */}
+        <label className="font-['Lexend:Regular',sans-serif] text-sm text-gray-600 mb-2">
+          Select Year
+        </label>
+        <select
+          value={selectedYearLevel}
+          onChange={(e) => {
+            setSelectedYearLevel(e.target.value);
+            setSelectedSemester("");
+          }}
+          disabled={!selectedProgram}
+          className="w-full px-5 py-4 rounded-2xl bg-gray-100 outline-none text-[#0f172a] text-[15px] shadow-sm focus:ring-4 focus:ring-[#137fec]/30 transition-all duration-300 mb-6 disabled:opacity-50"
+        >
+          <option value="">Choose Year</option>
+          {years.map((year) => (
+            <option key={year}>{year}</option>
+          ))}
+        </select>
 
+        {/* Semester */}
+        <label className="font-['Lexend:Regular',sans-serif] text-sm text-gray-600 mb-2">
+          Select Semester
+        </label>
+        <select
+          value={selectedSemester}
+          onChange={(e) => setSelectedSemester(e.target.value)}
+          disabled={!selectedYearLevel}
+          className="w-full px-5 py-4 rounded-2xl bg-gray-100 outline-none text-[#0f172a] text-[15px] shadow-sm focus:ring-4 focus:ring-[#137fec]/30 transition-all duration-300 mb-8 disabled:opacity-50"
+        >
+          <option value="">Choose Semester</option>
+          {semesters.map((semester) => (
+            <option key={semester}>{semester}</option>
+          ))}
+        </select>
+
+        {/* Continue Button */}
         <button
           onClick={handleContinue}
-          disabled={!selectedProgram || !selectedYearLevel}
-          className="bg-[#137fec] text-white w-full py-3 rounded-[12px] font-semibold disabled:opacity-50"
+          disabled={!isValid}
+          className={`w-full py-3 rounded-2xl
+            font-['Lexend:Bold',sans-serif] font-bold text-[18px]
+            transition-all duration-300 active:scale-95 shadow-md
+            ${
+              isValid
+                ? "bg-[#137fec] text-white hover:bg-[#106cd1]"
+                : "bg-gray-200 text-gray-400 cursor-not-allowed"
+            }
+          `}
         >
           Continue
         </button>
+
       </div>
     </div>
   );

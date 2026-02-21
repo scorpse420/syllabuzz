@@ -6,6 +6,7 @@ interface FeedbackState {
   yearLevel: string;
   course: string;
   subject: string;
+  semester:string;
 }
 
 interface FeedbackContextType {
@@ -14,6 +15,7 @@ interface FeedbackContextType {
   setProgram: (program: string) => void;
   setYearLevel: (yearLevel: string) => void;
   setCourse: (course: string) => void;
+  setSemester: (semester: string) => void;
   setSubject: (subject: string) => void;
   resetState: () => void;
 }
@@ -24,6 +26,7 @@ const initialState: FeedbackState = {
   yearLevel: "",
   course: "",
   subject: "",
+  semester:"",
 };
 
 const FeedbackContext = createContext<FeedbackContextType | undefined>(
@@ -45,6 +48,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
         setYearLevel: (yearLevel) => updateState({ yearLevel }),
         setCourse: (course) => updateState({ course }),
         setSubject: (subject) => updateState({ subject }),
+        setSemester: (semester) => updateState({ semester }),
         resetState: () => setState(initialState),
       }}
     >
