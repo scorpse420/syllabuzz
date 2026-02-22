@@ -3,6 +3,7 @@ import App from "./app/App";
 import { AuthProvider } from "./app/context/AuthContext";
 import "./styles/index.css";
 
+
 createRoot(document.getElementById("root")!).render(
   <AuthProvider>
     <App />

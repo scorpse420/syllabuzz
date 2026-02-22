@@ -1,5 +1,4 @@
 import svgPaths from "./svg-9c0l0ctsq4";
-import imgStudentsStudying from "figma:asset/699ac1321fb5a5675d1751399b7cf85f77649620.png";
 
 function Container() {
   return (
@@ -180,7 +179,7 @@ function StudentsStudying() {
   return (
     <div className="flex-[1_0_0] h-full min-h-px min-w-px mix-blend-multiply opacity-80 relative" data-name="Students studying">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <img alt="" className="absolute h-[177.77%] left-0 max-w-none top-[-38.89%] w-full" src={imgStudentsStudying} />
+        <img alt="" className="absolute h-[177.77%] left-0 max-w-none top-[-38.89%] w-full"  />
       </div>
     </div>
   );

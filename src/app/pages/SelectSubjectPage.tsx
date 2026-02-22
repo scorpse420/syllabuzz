@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../firebase/firebase";
 import { useFeedback } from "../context/FeedbackContext";
-
+import AppHeader from "../components/AppHeader";
 export function SelectSubjectPage() {
   const navigate = useNavigate();
   const { setSubject, state } = useFeedback();
@@ -48,8 +48,8 @@ export function SelectSubjectPage() {
 
   return (
   <div className="min-h-screen bg-[#137fec] px-4 py-8 flex justify-center">
-
-    <div className="w-full max-w-[420px]">
+    <AppHeader />
+    <div className="w-full max-w-[560px]">
 
       {/* Top Header */}
       <div className="flex items-center justify-between mb-6">

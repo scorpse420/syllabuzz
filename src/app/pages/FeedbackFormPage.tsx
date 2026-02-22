@@ -7,22 +7,34 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "../../firebase/firebase";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFeedback } from "../context/FeedbackContext";
-
-const questions = [
-  "The learning objectives were clear.",
-  "Instructor delivery was engaging.",
-  "Course materials were high quality.",
-  "Assignments were relevant.",
-  "Instructor provided helpful feedback.",
-];
+import { doc, onSnapshot } from "firebase/firestore";
+import AppHeader from "../components/AppHeader";
 
 export function FeedbackFormPage() {
   const navigate = useNavigate();
   const { state } = useFeedback();
+  const [questions, setQuestions] = useState<any[]>([]);
+const [loadingQuestions, setLoadingQuestions] = useState(true);
 
+useEffect(() => {
+  const unsubscribe = onSnapshot(
+    doc(db, "questionConfig", "global"),
+    (snapshot) => {
+      if (snapshot.exists()) {
+        setQuestions(snapshot.data().questions || []);
+      }
+      setLoadingQuestions(false);
+    }
+  );
+  
+
+  return () => unsubscribe();
+}, []);
+  
+  const [errorMessage, setErrorMessage] = useState("");
   const [ratings, setRatings] = useState<{ [key: number]: number }>({});
   const [comments, setComments] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -34,11 +46,15 @@ export function FeedbackFormPage() {
       (_, index) => ratings[index] !== undefined
     );
 
-    if (!allAnswered) return alert("Answer all questions.");
+    if (!allAnswered) {
+  setErrorMessage("Please answer all questions.");
+  return;
+}
 
-    if (!state.studentEmail)
-      return alert("Session expired. Restart.");
-
+if (!state.studentEmail) {
+  setErrorMessage("Session expired. Please restart.");
+  return;
+}
     setSubmitting(true);
 
     try {
@@ -50,34 +66,37 @@ export function FeedbackFormPage() {
 
       const existing = await getDocs(duplicateQuery);
       if (!existing.empty) {
-        alert("Feedback already submitted.");
-        setSubmitting(false);
-        return;
-      }
+  setErrorMessage("You have already submitted feedback for this subject.");
+  setSubmitting(false);
+  return;
+}
+      const dynamicRatings: Record<string, number> = {};
 
-      const docRef = await addDoc(collection(db, "feedback"), {
-        studentEmail: state.studentEmail,
-        program: state.program,
-        yearLevel: state.yearLevel,
-        course: state.course,
-        subject: state.subject,
-        q1: ratings[0],
-        q2: ratings[1],
-        q3: ratings[2],
-        q4: ratings[3],
-        q5: ratings[4],
-        comments,
-        timestamp: serverTimestamp(),
-      });
+questions.forEach((q, index) => {
+  dynamicRatings[q.id] = ratings[index];
+});
 
-      navigate("/success", {
-        state: { feedbackId: docRef.id },
-      });
-    } catch (err) {
-      console.error(err);
-      alert("Submission failed.");
-      setSubmitting(false);
-    }
+     
+  const docRef = await addDoc(collection(db, "feedback"), {
+    studentEmail: state.studentEmail,
+    program: state.program,
+    yearLevel: state.yearLevel,
+    course: state.course,
+    subject: state.subject,
+    ...dynamicRatings,
+    comments,
+    timestamp: serverTimestamp(),
+  });
+
+  navigate("/success", {
+    state: { feedbackId: docRef.id },
+  });
+
+} catch (err) {
+  console.error(err);
+  setErrorMessage("Submission failed. Please try again.");
+  setSubmitting(false);
+}
   };
 
  const totalQuestions = questions.length;
@@ -86,9 +105,17 @@ const progress = Math.round((answeredCount / totalQuestions) * 100);
 const allAnswered = questions.every(
   (_, index) => ratings[index] !== undefined
 );
+if (loadingQuestions) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#137fec] text-white">
+      Loading questions...
+    </div>
+  );
+}
 
 return (
   <div className="min-h-screen bg-[#137fec] px-4 py-8 flex justify-center">
+     <AppHeader />
     <div className="w-full max-w-[480px]">
 
       {/* Top Header */}
@@ -121,9 +148,17 @@ return (
       <div className="bg-white rounded-3xl shadow-2xl p-8 animate-fadeIn">
 
         {/* Title */}
-        <h1 className="font-['Lexend:Bold',sans-serif] font-bold text-[22px] text-[#0f172a] mb-2">
-          Subject Evaluation
-        </h1>
+        <h1>Subject Evaluation</h1>
+
+<p>
+  Please provide your honest feedback. Your responses are anonymous.
+</p>
+
+{errorMessage && (
+  <div className="mb-6 p-4 rounded-xl border border-red-300 bg-red-50 text-red-600 text-sm font-medium">
+    {errorMessage}
+  </div>
+)}
 
         <p className="text-gray-500 text-sm mb-8">
           Please provide your honest feedback. Your responses are anonymous.
@@ -132,11 +167,11 @@ return (
         {/* Questions */}
         <div className="flex flex-col gap-8">
           {questions.map((q, index) => (
-            <div key={index} className="bg-gray-50 rounded-2xl p-6 border">
+  <div key={q.id} className="bg-gray-50 rounded-2xl p-6 border">
 
-              <p className="font-semibold text-[#0f172a] mb-4">
-                {index + 1}. {q}
-              </p>
+    <p className="font-semibold text-[#0f172a] mb-4">
+      {index + 1}. {q.text}
+    </p>
 
               <div className="flex gap-3 justify-between">
                 {[1, 2, 3, 4, 5].map((r) => (
@@ -170,13 +205,30 @@ return (
           ))}
         </div>
 
-        {/* Comments */}
-        <textarea
-          value={comments}
-          onChange={(e) => setComments(e.target.value)}
-          placeholder="Additional comments (optional)"
-          className="w-full mt-8 p-4 border rounded-2xl focus:ring-2 focus:ring-[#137fec]/40 outline-none"
-        />
+       {/* Additional Comments */}
+<div className="mt-10 bg-gray-50 rounded-2xl p-6 border">
+
+  <h3 className="font-semibold text-[#0f172a] mb-4">
+    Additional Comments (Optional)
+  </h3>
+
+  <textarea
+    value={comments}
+    onChange={(e) => setComments(e.target.value)}
+    placeholder="Share any additional thoughts or suggestions..."
+    className="w-full 
+               min-h-[140px] 
+               rounded-xl 
+               border 
+               px-4 py-3 
+               text-[#0f172a] 
+               placeholder:text-gray-400
+               focus:outline-none 
+               focus:ring-2 
+               focus:ring-[#137fec]/40
+               transition-all"
+  />
+</div>
 
         {/* Submit Button */}
         <button

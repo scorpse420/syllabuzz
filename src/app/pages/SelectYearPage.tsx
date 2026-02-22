@@ -3,172 +3,175 @@ import { useNavigate } from "react-router-dom";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../firebase/firebase";
 import { useFeedback } from "../context/FeedbackContext";
+import AppHeader from "../components/AppHeader";
 
 export function SelectYearPage() {
   const navigate = useNavigate();
-  const { setProgram, setYearLevel, setSemester } = useFeedback();
+  const { setProgram, setCourse } = useFeedback();
 
   const [programs, setPrograms] = useState<string[]>([]);
-  const [years, setYears] = useState<string[]>([]);
-  const [semesters, setSemesters] = useState<string[]>([]);
-
-  const [selectedProgram, setSelectedProgram] = useState<string>("");
-  const [selectedYearLevel, setSelectedYearLevel] = useState<string>("");
-  const [selectedSemester, setSelectedSemester] = useState<string>("");
+  const [courses, setCourses] = useState<string[]>([]);
+  const [selectedProgram, setSelectedProgram] = useState("");
+  const [selectedCourse, setSelectedCourse] = useState("");
 
   useEffect(() => {
-    const fetchPrograms = async () => {
-      const snapshot = await getDocs(collection(db, "feedbackForms"));
-      const programSet = new Set<string>();
+  const fetchPrograms = async () => {
+    const snapshot = await getDocs(collection(db, "feedbackForms"));
 
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.program) programSet.add(data.program);
-      });
+    const mapData = new Map<string, string>();
 
-      setPrograms(Array.from(programSet));
-    };
+    snapshot.forEach((doc) => {
+      const data = doc.data();
 
-    fetchPrograms();
-  }, []);
+      if (data.program) {
+        const clean = data.program
+          .trim()
+          .replace(/\u00A0/g, " ")
+          .replace(/\s+/g, " ");
 
-  useEffect(() => {
-    if (!selectedProgram) return;
+        const normalized = clean.toLowerCase();
 
-    const fetchYears = async () => {
-      const snapshot = await getDocs(collection(db, "feedbackForms"));
-      const yearSet = new Set<string>();
-
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.program === selectedProgram && data.yearLevel) {
-          yearSet.add(data.yearLevel);
+        if (!mapData.has(normalized)) {
+          mapData.set(normalized, clean);
         }
-      });
+      }
+    });
 
-      setYears(Array.from(yearSet));
-    };
+    setPrograms(Array.from(mapData.values()));
+  };
 
-    fetchYears();
-  }, [selectedProgram]);
+  fetchPrograms();
+}, []);
 
   useEffect(() => {
-    if (!selectedProgram || !selectedYearLevel) return;
+  if (!selectedProgram) return;
 
-    const fetchSemesters = async () => {
-      const snapshot = await getDocs(collection(db, "feedbackForms"));
-      const semesterSet = new Set<string>();
+  const fetchCourses = async () => {
+    const snapshot = await getDocs(collection(db, "feedbackForms"));
 
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (
-          data.program === selectedProgram &&
-          data.yearLevel === selectedYearLevel &&
-          data.semester
-        ) {
-          semesterSet.add(data.semester);
+    const mapData = new Map<string, string>();
+
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+
+      if (data.program === selectedProgram && data.course) {
+        const clean = data.course
+          .trim()
+          .replace(/\u00A0/g, " ")
+          .replace(/\s+/g, " ");
+
+        const normalized = clean.toLowerCase();
+
+        if (!mapData.has(normalized)) {
+          mapData.set(normalized, clean);
         }
-      });
+      }
+    });
 
-      setSemesters(Array.from(semesterSet));
-    };
+    setCourses(Array.from(mapData.values()));
+  };
 
-    fetchSemesters();
-  }, [selectedProgram, selectedYearLevel]);
+  fetchCourses();
+}, [selectedProgram]);
+
+  const isValid = selectedProgram && selectedCourse;
 
   const handleContinue = () => {
-  
-    if (!selectedProgram || !selectedYearLevel || !selectedSemester) return;
-
+    if (!isValid) return;
     setProgram(selectedProgram);
-    setYearLevel(selectedYearLevel);
-    setSemester(selectedSemester);
-
+    setCourse(selectedCourse);
     navigate("/select-course");
   };
 
-  const isValid =
-    selectedProgram && selectedYearLevel && selectedSemester;
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#137fec] px-4">
+      <AppHeader />
 
-      {/* White Card */}
-      <div className="w-full max-w-[420px] bg-white rounded-3xl shadow-2xl p-10 flex flex-col animate-fadeIn">
+      <div className="w-full max-w-[600px] bg-white rounded-3xl shadow-2xl p-14 flex flex-col items-center text-center animate-fadeIn">
 
-        <h1 className="font-['Lexend:Bold',sans-serif] font-bold text-[#0f172a] text-[26px] text-center mb-8">
-          Select Program, Year & Semester
+        {/* Title */}
+        <h1 className="font-bold text-[#0f172a] text-[34px] leading-[40px] mb-4">
+          Select Program & Course
         </h1>
 
-        {/* Program */}
-        <label className="font-['Lexend:Regular',sans-serif] text-sm text-gray-600 mb-2">
-          Select Program
-        </label>
-        <select
-          value={selectedProgram}
-          onChange={(e) => {
-            setSelectedProgram(e.target.value);
-            setSelectedYearLevel("");
-            setSelectedSemester("");
-          }}
-          className="w-full px-5 py-4 rounded-2xl bg-gray-100 outline-none text-[#0f172a] text-[15px] shadow-sm focus:ring-4 focus:ring-[#137fec]/30 transition-all duration-300 mb-6"
-        >
-          <option value="">Choose Program</option>
-          {programs.map((program) => (
-            <option key={program}>{program}</option>
-          ))}
-        </select>
+        {/* Subtitle */}
+        <p className="text-gray-600 text-[15px] mb-10 max-w-[420px]">
+          Choose your program and course to continue.
+        </p>
 
-        {/* Year */}
-        <label className="font-['Lexend:Regular',sans-serif] text-sm text-gray-600 mb-2">
-          Select Year
-        </label>
-        <select
-          value={selectedYearLevel}
-          onChange={(e) => {
-            setSelectedYearLevel(e.target.value);
-            setSelectedSemester("");
-          }}
-          disabled={!selectedProgram}
-          className="w-full px-5 py-4 rounded-2xl bg-gray-100 outline-none text-[#0f172a] text-[15px] shadow-sm focus:ring-4 focus:ring-[#137fec]/30 transition-all duration-300 mb-6 disabled:opacity-50"
-        >
-          <option value="">Choose Year</option>
-          {years.map((year) => (
-            <option key={year}>{year}</option>
-          ))}
-        </select>
+        <div className="w-full text-left">
 
-        {/* Semester */}
-        <label className="font-['Lexend:Regular',sans-serif] text-sm text-gray-600 mb-2">
-          Select Semester
-        </label>
-        <select
-          value={selectedSemester}
-          onChange={(e) => setSelectedSemester(e.target.value)}
-          disabled={!selectedYearLevel}
-          className="w-full px-5 py-4 rounded-2xl bg-gray-100 outline-none text-[#0f172a] text-[15px] shadow-sm focus:ring-4 focus:ring-[#137fec]/30 transition-all duration-300 mb-8 disabled:opacity-50"
-        >
-          <option value="">Choose Semester</option>
-          {semesters.map((semester) => (
-            <option key={semester}>{semester}</option>
-          ))}
-        </select>
+          {/* Program */}
+          <label className="text-sm text-gray-600 mb-2 block">
+            Select Program
+          </label>
+          <select
+            value={selectedProgram}
+            onChange={(e) => {
+              setSelectedProgram(e.target.value);
+              setSelectedCourse("");
+            }}
+            className="w-full px-6 py-4 rounded-2xl bg-gray-100 outline-none
+                       text-[#0f172a] text-[16px] shadow-sm
+                       focus:ring-4 focus:ring-[#137fec]/30
+                       transition-all duration-300 mb-8"
+          >
+            <option value="">Choose Program</option>
+            {programs.map((p) => (
+              <option key={p}>{p}</option>
+            ))}
+          </select>
 
-        {/* Continue Button */}
+          {/* Course */}
+          <label className="text-sm text-gray-600 mb-2 block">
+            Select Course
+          </label>
+          <select
+            value={selectedCourse}
+            onChange={(e) => setSelectedCourse(e.target.value)}
+            disabled={!selectedProgram}
+            className="w-full px-6 py-4 rounded-2xl bg-gray-100 outline-none
+                       text-[#0f172a] text-[16px] shadow-sm
+                       focus:ring-4 focus:ring-[#137fec]/30
+                       transition-all duration-300"
+          >
+            <option value="">Choose Course</option>
+            {courses.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+
+        </div>
+
+        {/* Button */}
         <button
           onClick={handleContinue}
           disabled={!isValid}
-          className={`w-full py-3 rounded-2xl
-            font-['Lexend:Bold',sans-serif] font-bold text-[18px]
+          className={`mt-10 w-full py-4 rounded-2xl
+            flex items-center justify-center gap-2
+            font-bold text-[20px]
             transition-all duration-300 active:scale-95 shadow-md
             ${
               isValid
-                ? "bg-[#137fec] text-white hover:bg-[#106cd1]"
+                ? "bg-[#137fec] text-white hover:bg-[#106cd1] group"
                 : "bg-gray-200 text-gray-400 cursor-not-allowed"
             }
           `}
         >
-          Continue
+          <span>Continue</span>
+
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className={`w-5 h-5 transition-transform duration-300 ${
+              isValid ? "group-hover:translate-x-1" : ""
+            }`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
         </button>
 
       </div>

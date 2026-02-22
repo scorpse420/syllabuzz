@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Check } from "lucide-react";
+import { motion } from "framer-motion";
 import {
   collection,
   doc,
@@ -7,7 +9,6 @@ import {
 import { db } from "../../firebase/firebase";
 import { useNavigate, useLocation } from "react-router";
 import { useFeedback } from "../context/FeedbackContext";
-
 export function SuccessPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -49,7 +50,6 @@ export function SuccessPage() {
   }, [feedbackId]);
 
   const handleProvideMoreFeedback = () => {
-    resetState();
     navigate("/select-subject");
   };
 
@@ -60,10 +60,28 @@ export function SuccessPage() {
 
   return (
     <div className="bg-[#f8fafc] min-h-screen flex items-center justify-center px-[16px]">
+      
       <div className="flex flex-col gap-[32px] w-full max-w-[448px]">
 
         {/* Success Icon */}
-        <div className="bg-[#dcfce7] p-[24px] rounded-full mx-auto w-[80px] h-[80px]" />
+        <motion.div
+  initial={{ scale: 0 }}
+  animate={{ scale: 1 }}
+  transition={{ type: "spring", stiffness: 260, damping: 20 }}
+  className="mx-auto w-[88px] h-[88px] 
+             rounded-full 
+             bg-[#16a34a] 
+             flex items-center justify-center 
+             shadow-lg"
+>
+  <motion.div
+    initial={{ scale: 0 }}
+    animate={{ scale: 1 }}
+    transition={{ delay: 0.2 }}
+  >
+    <Check className="w-10 h-10 text-white" strokeWidth={3} />
+  </motion.div>
+</motion.div>
 
         {/* Title */}
         <div className="text-center">

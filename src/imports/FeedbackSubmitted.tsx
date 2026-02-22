@@ -1,5 +1,5 @@
 import svgPaths from "./svg-4jffbhh5u2";
-import imgSuccessIllustration from "figma:asset/754856d08a04de1e122c6a4a2e73379b4807b8e1.png";
+
 
 function Container() {
   return (
@@ -168,7 +168,7 @@ function SuccessIllustration() {
   return (
     <div className="flex-[1_0_0] h-full min-h-px min-w-px mix-blend-multiply opacity-80 relative rounded-[8px]" data-name="Success Illustration">
       <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-[8px]">
-        <img alt="" className="absolute left-0 max-w-none size-full top-0" src={imgSuccessIllustration} />
+        <img alt="" className="absolute left-0 max-w-none size-full top-0"  />
       </div>
     </div>
   );

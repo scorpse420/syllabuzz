@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import {
   collection,
   query,
@@ -31,9 +31,9 @@ const COLORS = ["#137FEC", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"];
 export function AdminDashboard() {
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<"analytics" | "forms">(
-    "analytics"
-  );
+  const [activeTab, setActiveTab] = useState<
+  "analytics" | "forms" | "questions"
+>("analytics");
   const [selectedProgram, setSelectedProgram] = useState("All");
 const [selectedYear, setSelectedYear] = useState("All");
 const [selectedSubject, setSelectedSubject] = useState("All");
@@ -47,12 +47,85 @@ useEffect(() => {
   setSelectedSubject("All");
 }, [selectedYear]);
 
+
   /* ===========================
      FEEDBACK DATA (LIVE)
   ============================ */
-
+  const [successMessage, setSuccessMessage] = useState("");
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [feedbackData, setFeedbackData] = useState<any[]>([]);
   const [loadingFeedback, setLoadingFeedback] = useState(true);
+  const [forms, setForms] = useState<any[]>([]);
+const [loadingForms, setLoadingForms] = useState(true);
+
+const [editingForm, setEditingForm] = useState<any | null>(null);
+
+const [formData, setFormData] = useState({
+  program: "",
+  yearLevel: "",
+  semester: "",
+  course: "",
+  subject: "",
+});
+
+const resetForm = () => {
+  setFormData({
+    program: "",
+    yearLevel: "",
+    semester: "",
+    course: "",
+    subject: "",
+  });
+  setEditingForm(null);
+};
+
+const handleCreateOrUpdate = async () => {
+  if (
+    !formData.program ||
+    !formData.yearLevel ||
+    !formData.semester ||
+    !formData.course ||
+    !formData.subject
+  ) {
+    alert("All fields are required.");
+    return;
+  }
+
+  // 🔥 CLEAN DATA BEFORE SAVING
+  const cleanedData = {
+    program: formData.program.trim().replace(/\u00A0/g, " ").replace(/\s+/g, " "),
+    course: formData.course.trim().replace(/\u00A0/g, " ").replace(/\s+/g, " "),
+    yearLevel: formData.yearLevel.trim().replace(/\u00A0/g, " "),
+    semester: formData.semester.trim().replace(/\u00A0/g, " "),
+    subject: formData.subject.trim().replace(/\u00A0/g, " ").replace(/\s+/g, " "),
+  };
+
+  if (editingForm) {
+    await updateDoc(doc(db, "feedbackForms", editingForm.id), {
+      ...cleanedData,
+      updatedAt: serverTimestamp(),
+    });
+  } else {
+    await addDoc(collection(db, "feedbackForms"), {
+      ...cleanedData,
+      createdAt: serverTimestamp(),
+    });
+  }
+
+  resetForm();
+};
+
+const handleEdit = (form: any) => {
+  setEditingForm(form);
+  setFormData(form);
+};
+
+const confirmDelete = async () => {
+  if (!deleteId) return;
+
+  await deleteDoc(doc(db, "feedbackForms", deleteId));
+  setDeleteId(null);
+};
 
   useEffect(() => {
     const q = query(collection(db, "feedback"), orderBy("timestamp", "desc"));
@@ -66,6 +139,25 @@ useEffect(() => {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+  const q = query(
+    collection(db, "feedbackForms"),
+    orderBy("createdAt", "desc")
+  );
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const data = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    setForms(data);
+    setLoadingForms(false); // IMPORTANT
+  });
+
+  return () => unsubscribe();
+}, []);
 
   const filteredFeedback = useMemo(() => {
   return feedbackData.filter((f) => {
@@ -82,212 +174,179 @@ useEffect(() => {
   /* ===========================
      EXPORT CSV (UNCHANGED)
   ============================ */
+const handleExportCSV = () => {
+  if (!filteredFeedback.length) {
+    alert("No feedback available to export.");
+    return;
+  }
 
-  const handleExportCSV = () => {
-    if (!feedbackData.length) {
-      alert("No feedback available to export.");
-      return;
-    }
+  if (!questions.length) {
+    alert("No questions configured.");
+    return;
+  }
 
-    const headers = [
-      "Student Email",
-      "Program",
-      "Year Level",
-      "Semester",
-      "Course",
-      "Subject",
-      "Q1",
-      "Q2",
-      "Q3",
-      "Q4",
-      "Q5",
-      "Comments",
-      "Timestamp",
-    ];
+  // STATIC HEADERS (email removed)
+  const staticHeaders = [
+    "Program",
+    "Year Level",
+    "Semester",
+    "Course",
+    "Subject",
+  ];
 
-    const rows = filteredFeedback.map((f) => [
-      f.studentEmail || "",
+  // DYNAMIC QUESTION HEADERS
+  const questionHeaders = questions.map((q) =>
+    q.id.toUpperCase()
+  );
+
+  const finalHeaders = [
+    ...staticHeaders,
+    ...questionHeaders,
+    "Comments",
+    "Timestamp",
+  ];
+
+  const rows = filteredFeedback.map((f) => {
+    const staticFields = [
       f.program || "",
       f.yearLevel || "",
       f.semester || "",
       f.course || "",
       f.subject || "",
-      f.q1,
-      f.q2,
-      f.q3,
-      f.q4,
-      f.q5,
-      f.comments || "",
-      f.timestamp?.toDate
-        ? f.timestamp.toDate().toLocaleString()
-        : "",
-    ]);
+    ];
 
-    const csv =
-      [headers, ...rows]
-        .map((row) =>
-          row.map((val) => `"${String(val).replace(/"/g, '""')}"`).join(",")
-        )
-        .join("\n");
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "all_feedback.csv";
-    link.click();
-  };
-
-  /* ===========================
-     FORMS MANAGEMENT (UNCHANGED)
-  ============================ */
-
-  const [forms, setForms] = useState<any[]>([]);
-  const [loadingForms, setLoadingForms] = useState(true);
-  const [editingForm, setEditingForm] = useState<any | null>(null);
-
-  const [formData, setFormData] = useState({
-    program: "",
-    yearLevel: "",
-    semester: "",
-    course: "",
-    subject: "",
-  });
-
-  useEffect(() => {
-    const q = query(
-      collection(db, "feedbackForms"),
-      orderBy("createdAt", "desc")
+    const dynamicRatings = questions.map(
+      (q) => f[q.id] || ""
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setForms(data);
-      setLoadingForms(false);
-    });
+    const timestamp =
+      f.timestamp?.toDate
+        ? f.timestamp.toDate().toLocaleString()
+        : "";
 
-    return () => unsubscribe();
-  }, []);
+    return [
+      ...staticFields,
+      ...dynamicRatings,
+      f.comments || "",
+      timestamp,
+    ];
+  });
 
-  const resetForm = () => {
-    setFormData({
-      program: "",
-      yearLevel: "",
-      semester: "",
-      course: "",
-      subject: "",
-    });
-    setEditingForm(null);
-  };
+  const csv =
+    [finalHeaders, ...rows]
+      .map((row) =>
+        row
+          .map((val) =>
+            `"${String(val).replace(/"/g, '""')}"`
+          )
+          .join(",")
+      )
+      .join("\n");
 
-  const handleCreateOrUpdate = async () => {
-    if (
-      !formData.program ||
-      !formData.yearLevel ||
-      !formData.semester ||
-      !formData.course ||
-      !formData.subject
-    ) {
-      alert("All fields are required.");
-      return;
+  const blob = new Blob([csv], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = "feedback_export.csv";
+  link.click();
+};
+  /* ===========================
+   GLOBAL QUESTION CONFIG
+=========================== */
+
+const [questions, setQuestions] = useState<any[]>([]);
+const [loadingQuestions, setLoadingQuestions] = useState(true);
+
+useEffect(() => {
+  const unsubscribe = onSnapshot(
+    doc(db, "questionConfig", "global"),
+    (snapshot) => {
+      if (snapshot.exists()) {
+        setQuestions(snapshot.data().questions || []);
+      }
+      setLoadingQuestions(false);
     }
+  );
 
-    if (editingForm) {
-      await updateDoc(doc(db, "feedbackForms", editingForm.id), {
-        ...formData,
-        updatedAt: serverTimestamp(),
-      });
-    } else {
-      await addDoc(collection(db, "feedbackForms"), {
-        ...formData,
-        createdAt: serverTimestamp(),
-      });
-    }
-
-    resetForm();
-  };
-
-  const handleEdit = (form: any) => {
-    setEditingForm(form);
-    setFormData(form);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Delete this feedback form?")) return;
-    await deleteDoc(doc(db, "feedbackForms", id));
-  };
+  return () => unsubscribe();
+}, []);
 
   /* ===========================
-     ANALYTICS
-  ============================ */
+   ANALYTICS (FULLY DYNAMIC)
+=========================== */
 
-  const stats = useMemo(() => {
-    const total = filteredFeedback.length;
-    if (!total) {
-      return {
-        total: 0,
-        avgScores: { q1: 0, q2: 0, q3: 0, q4: 0, q5: 0 },
-      };
-    }
+const stats = useMemo(() => {
+  const total = filteredFeedback.length;
 
-    const avgScores = {
-      q1:filteredFeedback.reduce((s, i) => s + i.q1, 0) / total,
-      q2: filteredFeedback.reduce((s, i) => s + i.q2, 0) / total,
-      q3: filteredFeedback.reduce((s, i) => s + i.q3, 0) / total,
-      q4: filteredFeedback.reduce((s, i) => s + i.q4, 0) / total,
-      q5: filteredFeedback.reduce((s, i) => s + i.q5, 0) / total,
+  if (!total || questions.length === 0) {
+    return {
+      total: 0,
+      avgScores: {} as Record<string, number>,
     };
+  }
 
-    return { total, avgScores };
-  }, [filteredFeedback]);
+  const avgScores: Record<string, number> = {};
 
-  const overallAverage =
-    stats.total === 0
-      ? 0
-      : (
-          (stats.avgScores.q1 +
-            stats.avgScores.q2 +
-            stats.avgScores.q3 +
-            stats.avgScores.q4 +
-            stats.avgScores.q5) /
-          5
-        ).toFixed(2);
+  questions.forEach((q) => {
+    avgScores[q.id] =
+      filteredFeedback.reduce(
+        (sum, item) => sum + (item[q.id] || 0),
+        0
+      ) / total;
+  });
 
-  const uniqueStudents = new Set(
-    filteredFeedback.map((f) => f.studentEmail)
-  ).size;
+  return { total, avgScores };
+}, [filteredFeedback, questions]);
 
-  const questionAverages = [
-    { question: "Q1", average: stats.avgScores.q1 },
-    { question: "Q2", average: stats.avgScores.q2 },
-    { question: "Q3", average: stats.avgScores.q3 },
-    { question: "Q4", average: stats.avgScores.q4 },
-    { question: "Q5", average: stats.avgScores.q5 },
-  ];
+const overallAverage =
+  stats.total === 0 || questions.length === 0
+    ? 0
+    : (
+        Object.values(stats.avgScores).reduce(
+          (a, b) => a + b,
+          0
+        ) / questions.length
+      ).toFixed(2);
 
-  const ratingDistribution = useMemo(() => {
-    const dist: Record<number, number> = {
-      1: 0,
-      2: 0,
-      3: 0,
-      4: 0,
-      5: 0,
-    };
+const uniqueStudents = new Set(
+  filteredFeedback.map((f) => f.studentEmail)
+).size;
 
-    filteredFeedback.forEach((f) => {
-      [f.q1, f.q2, f.q3, f.q4, f.q5].forEach((r) => dist[r]++);
+/* Question-wise averages for Bar Chart */
+const questionAverages = questions.map((q) => ({
+  question: q.id.toUpperCase(),
+  average: stats.avgScores[q.id] || 0,
+}));
+
+/* Rating Distribution (All Questions Combined) */
+const ratingDistribution = useMemo(() => {
+  const dist: Record<number, number> = {
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0,
+  };
+
+  filteredFeedback.forEach((f) => {
+    questions.forEach((q) => {
+      const rating = f[q.id];
+      if (rating) dist[rating]++;
     });
+  });
 
-    return Object.entries(dist).map(([r, c]) => ({
-      name: `${r} Star`,
-      value: c,
-    }));
-  }, [filteredFeedback]);
-   const subjectAverages = useMemo(() => {
+  return Object.entries(dist).map(([r, c]) => ({
+    name: `${r} Star`,
+    value: c,
+  }));
+}, [filteredFeedback, questions]);
+
+/* Subject-wise Average */
+const subjectAverages = useMemo(() => {
   const map: Record<string, { total: number; count: number }> = {};
 
   filteredFeedback.forEach((f) => {
@@ -296,7 +355,10 @@ useEffect(() => {
     }
 
     const avg =
-      (f.q1 + f.q2 + f.q3 + f.q4 + f.q5) / 5;
+      questions.reduce(
+        (sum, q) => sum + (f[q.id] || 0),
+        0
+      ) / questions.length;
 
     map[f.subject].total += avg;
     map[f.subject].count += 1;
@@ -306,11 +368,10 @@ useEffect(() => {
     subject,
     average: data.total / data.count,
   }));
-}, [filteredFeedback]);
+}, [filteredFeedback, questions]);
 
-
-  if (loadingFeedback || loadingForms) {
-    return (
+    if (loadingFeedback || loadingForms || loadingQuestions) {
+        return (
       <div className="min-h-screen flex items-center justify-center text-xl">
         Loading data...
       </div>
@@ -318,7 +379,49 @@ useEffect(() => {
   }
  
   return (
-    <div className="h-screen bg-[#f8fafc] flex overflow-hidden">
+  <div className="h-screen bg-[#f8fafc] flex overflow-hidden">
+
+    {/* SUCCESS TOAST */}
+    {successMessage && (
+      <div className="fixed top-6 right-6 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg z-50">
+        {successMessage}
+      </div>
+    )}
+
+    {/* DELETE MODAL — SEPARATE */}
+    {deleteId && (
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+
+          <h2 className="text-xl font-bold text-[#0f172a] mb-4">
+            Delete Feedback Form
+          </h2>
+
+          <p className="text-gray-600 mb-6">
+            Are you sure you want to delete this feedback form? This action cannot be undone.
+          </p>
+
+          <div className="flex justify-end gap-4">
+            <button
+              onClick={() => setDeleteId(null)}
+              className="px-5 py-2 rounded-xl border border-gray-300 hover:bg-gray-100 transition"
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={confirmDelete}
+              className="px-5 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 transition"
+            >
+              Delete
+            </button>
+          </div>
+
+        </div>
+      </div>
+    )}
+
+    {/* SIDEBAR CONTINUES */}
       {/* SIDEBAR */}
 <div className="w-72 bg-white border-r border-gray-200 h-full flex flex-col shadow-lg">
   {/* HEADER */}
@@ -357,6 +460,16 @@ useEffect(() => {
   >
     Manage Feedback Forms
   </button>
+  <button
+  onClick={() => setActiveTab("questions")}
+  className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl transition-all text-base font-semibold ${
+    activeTab === "questions"
+      ? "bg-[#137fec] text-white shadow-md"
+      : "bg-[#f1f5f9] text-gray-700 hover:bg-[#e2e8f0]"
+  }`}
+>
+  Manage Questions
+</button>
 
 </div>
 
@@ -501,7 +614,7 @@ useEffect(() => {
     {/* PROGRAM */}
     <div>
       <label className="block text-sm font-medium text-gray-600 mb-2">
-        Academic Year
+        Program
       </label>
       <select
         value={selectedProgram}
@@ -514,16 +627,27 @@ useEffect(() => {
                    transition-all"
       >
         <option value="All">All Programs</option>
-        {[...new Set(forms.map(f => f.program))].map((p) => (
-          <option key={p}>{p}</option>
-        ))}
+        {Array.from(
+  new Map(
+    forms.map(f => {
+      const clean = (f.program ?? "")
+        .trim()
+        .replace(/\u00A0/g, " ")
+        .replace(/\s+/g, " ");
+
+      return [clean.toLowerCase(), clean];
+    })
+  ).values()
+).map((p) => (
+  <option key={p}>{p}</option>
+))}
       </select>
     </div>
 
     {/* YEAR */}
     <div>
       <label className="block text-sm font-medium text-gray-600 mb-2">
-        Course
+        Year
       </label>
       <select
         value={selectedYear}
@@ -536,12 +660,18 @@ useEffect(() => {
                    transition-all"
       >
         <option value="All">All Years</option>
-        {[...new Set(forms
-          .filter(f => selectedProgram === "All" || f.program === selectedProgram)
-          .map(f => f.yearLevel)
-        )].map((y) => (
-          <option key={y}>{y}</option>
-        ))}
+        {Array.from(
+  new Map(
+    forms
+      .filter(f => selectedProgram === "All" || f.program === selectedProgram)
+      .map(f => {
+        const clean = (f.yearLevel ?? "").trim();
+        return [clean.toLowerCase(), clean];
+      })
+  ).values()
+).map((y) => (
+  <option key={y}>{y}</option>
+))}
       </select>
     </div>
 
@@ -562,14 +692,14 @@ useEffect(() => {
       >
         <option value="All">All Subjects</option>
         {[...new Set(forms
-          .filter(f =>
-            (selectedProgram === "All" || f.program === selectedProgram) &&
-            (selectedYear === "All" || f.yearLevel === selectedYear)
-          )
-          .map(f => f.subject)
-        )].map((s) => (
-          <option key={s}>{s}</option>
-        ))}
+  .filter(f =>
+    (selectedProgram === "All" || f.program === selectedProgram) &&
+    (selectedYear === "All" || f.yearLevel === selectedYear)
+  )
+  .map(f => f.subject)
+)].map((s) => (
+  <option key={s}>{s}</option>
+))}
       </select>
     </div>
 
@@ -665,42 +795,104 @@ useEffect(() => {
 </div>
 
             {/* DETAILED RESPONSES */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="p-6 font-semibold text-lg">
-    Detailed Responses ({filteredFeedback.length})
-  </div>
+<div className="bg-white rounded-[12px] border border-[#e2e8f0] p-6 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
 
-  <div className="px-6 pb-6">
-    <table className="w-full text-left text-sm border-separate border-spacing-y-2">
+  <h3 className="text-[18px] font-bold text-[#0f172a] mb-4">
+    Detailed Responses ({filteredFeedback.length} records)
+  </h3>
+
+  <div className="overflow-x-auto">
+    <table className="w-full">
+
       <thead>
-        <tr className="text-gray-500 text-xs uppercase tracking-wider">
-          <th>Subject</th>
-          <th>Q1</th>
-          <th>Q2</th>
-          <th>Q3</th>
-          <th>Q4</th>
-          <th>Q5</th>
-          <th>Comments</th>
-        </tr>
-      </thead>
+  <tr className="border-b border-[#e2e8f0]">
+    <th className="text-left text-[12px] text-[#64748b] uppercase tracking-wider py-3 px-4">
+      Subject
+    </th>
+
+    {questions.map((q) => (
+      <th
+        key={q.id}
+        className="text-center text-[12px] text-[#64748b] uppercase tracking-wider py-3 px-4"
+      >
+        {q.id.toUpperCase()}
+      </th>
+    ))}
+
+    <th className="text-center text-[12px] text-[#64748b] uppercase tracking-wider py-3 px-4">
+      Average
+    </th>
+
+    <th className="text-left text-[12px] text-[#64748b] uppercase tracking-wider py-3 px-4">
+      Comments
+    </th>
+  </tr>
+</thead>
 
       <tbody>
-        {filteredFeedback.slice(0, 10).map((f) => (
-          <tr
-            key={f.id}
-            className="bg-gray-50 hover:bg-gray-100 transition rounded-lg"
-          >
-            <td className="p-3 font-medium">{f.subject}</td>
-            <td className="p-3">{f.q1}</td>
-            <td className="p-3">{f.q2}</td>
-            <td className="p-3">{f.q3}</td>
-            <td className="p-3">{f.q4}</td>
-            <td className="p-3">{f.q5}</td>
-            <td className="p-3 max-w-xs truncate">
-              {f.comments || "-"}
-            </td>
-          </tr>
-        ))}
+        {filteredFeedback.slice(0, 10).map((f, index) => {
+          const average =
+  questions.length > 0
+    ? (
+        questions.reduce(
+          (sum, q) => sum + (f[q.id] || 0),
+          0
+        ) / questions.length
+      ).toFixed(2)
+    : "0";
+
+          const getBadge = (value: number) =>
+            value >= 4
+              ? "bg-[#dcfce7] text-[#10b981]"
+              : value === 3
+              ? "bg-[#fef3c7] text-[#f59e0b]"
+              : "bg-[#fee2e2] text-[#ef4444]";
+
+          return (
+            <tr
+              key={f.id}
+              className={`border-b border-[#e2e8f0] transition hover:bg-[#f8fafc] ${
+                index % 2 === 0 ? "bg-white" : "bg-[#fafbfc]"
+              }`}
+            >
+              <td className="text-[14px] text-[#0f172a] py-3 px-4">
+                {f.subject}
+              </td>
+
+             {questions.map((qObj, i) => {
+  const value = f[qObj.id];
+
+  return (
+    <td key={i} className="text-center py-3 px-4">
+      <span
+        className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-[14px] font-semibold ${getBadge(value)}`}
+      >
+        {value}
+      </span>
+    </td>
+  );
+})}
+
+              <td className="text-center text-[16px] font-bold py-3 px-4">
+                <span
+                  className={`${
+                    parseFloat(average) >= 4
+                      ? "text-[#10b981]"
+                      : parseFloat(average) >= 3
+                      ? "text-[#f59e0b]"
+                      : "text-[#ef4444]"
+                  }`}
+                >
+                  {average}
+                </span>
+              </td>
+
+              <td className="text-[14px] text-[#64748b] py-3 px-4 max-w-[300px] truncate">
+                {f.comments || "-"}
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   </div>
@@ -719,10 +911,10 @@ useEffect(() => {
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
                 {[
                   "program",
-                  "yearLevel",
-                  "semester",
-                  "course",
-                  "subject",
+  "course",
+  "yearLevel",
+  "semester",
+  "subject",
                 ].map((field) => (
                   <input
                     key={field}
@@ -764,9 +956,9 @@ useEffect(() => {
                 <thead className="bg-[#f8fafc] border-b border-gray-200">
                   <tr>
                     <th className="p-3">Program</th>
+                    <th className="p-3">Course</th>
                     <th className="p-3">Year</th>
                     <th className="p-3">Semester</th>
-                    <th className="p-3">Course</th>
                     <th className="p-3">Subject</th>
                     <th className="p-3">Actions</th>
                   </tr>
@@ -775,9 +967,9 @@ useEffect(() => {
                   {forms.map((form) => (
                     <tr key={form.id} className="border-t">
                       <td className="p-3">{form.program}</td>
+                      <td className="p-3">{form.course}</td>
                       <td className="p-3">{form.yearLevel}</td>
                       <td className="p-3">{form.semester}</td>
-                      <td className="p-3">{form.course}</td>
                       <td className="p-3">{form.subject}</td>
                       <td className="p-3 flex gap-4">
                         <button
@@ -787,7 +979,7 @@ useEffect(() => {
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDelete(form.id)}
+                          onClick={() => setDeleteId(form.id)}
                           className="text-red-600"
                         >
                           Delete
@@ -800,6 +992,85 @@ useEffect(() => {
             </div>
           </>
         )}
+        {activeTab === "questions" && (
+  <>
+    <h1 className="text-2xl font-bold mb-6">
+      Manage Global Questions
+    </h1>
+
+    <div className="bg-white p-6 rounded-xl shadow border">
+
+      <div className="space-y-4 mb-6">
+        {questions.map((q, index) => (
+  <div key={q.id} className="flex gap-3 items-center">
+    <input
+      value={q.text}
+      onChange={(e) => {
+        const updated = [...questions];
+        updated[index] = {
+          ...updated[index],
+          text: e.target.value,
+        };
+        setQuestions(updated);
+      }}
+      className="flex-1 border p-3 rounded-lg"
+    />
+
+    {/* DELETE BUTTON */}
+    <button
+      onClick={() => {
+        const updated = questions.filter(
+          (_, i) => i !== index
+        );
+        setQuestions(updated);
+      }}
+      className="bg-red-600 text-white px-3 py-2 rounded-lg 
+             hover:bg-red-700 active:bg-red-800 
+             transition font-semibold"
+    >
+      Delete
+    </button>
+  </div>
+))}
+      </div>
+
+      <div className="flex gap-4">
+        <button
+  onClick={() =>
+    setQuestions([
+      ...questions,
+      {
+        id: `q_${Date.now()}`,
+        text: "",
+      },
+    ])
+  }
+  className="border px-4 py-2 rounded-lg"
+>
+  Add Question
+</button>
+
+        <button
+          onClick={async () => {
+            await updateDoc(
+              doc(db, "questionConfig", "global"),
+              {
+                questions,
+                updatedAt: serverTimestamp(),
+              }
+            );
+            setSuccessMessage("Questions updated successfully");
+setTimeout(() => setSuccessMessage(""), 3000);
+          }}
+          className="bg-[#137fec] text-white px-6 py-2 rounded-lg"
+        >
+          Save Changes
+        </button>
+      </div>
+
+    </div>
+  </>
+)}
       </div>
     </div>
   );
@@ -852,6 +1123,7 @@ function StatCard({ title, value }: any) {
   };
 
   return (
+    
     <div className="bg-white rounded-2xl border border-gray-200 
                     p-6 shadow-sm hover:shadow-md 
                     transition-all duration-200 hover:-translate-y-1">
